@@ -24,7 +24,7 @@ def transformInput():
   return tempBuf
 
 def addMessageToImage():
-  image = Image.open("test.jpeg")
+  image = Image.open("in.bmp")
   (width, height) = image.size
   imgArry = numpy.array(image)
   if (len(messageBinary) * 4 ) < imgArry.size:
@@ -39,7 +39,6 @@ def addMessageToImage():
         if row > height:
           break
       row += 1
-    
     result = Image.fromarray(imgArry)
     result.save('out.bmp')
 
@@ -53,26 +52,28 @@ def fetchMessageFromImage():
   decodeArray = []
   decodedMessage = ""
   while not doneFetching:
+    if row == height:
+      break
     for i in range (0, width):
-      messageBinary.append(bin(imgArry[row][i][0])[-2:])
+      messageBinary.append(bin(imgArry[row][i][0])[2:][-2:].zfill(2))
       if messageBinary[-12:] == stopSeqBroken:
         doneFetching = True
         break
-      if row > height:
-        break
+
     row += 1
+
   while len(messageBinary) > 0:
     if len(messageBinary) >= 4:
         tempStr = ""
         for i in range(0,4):
           tempStr += messageBinary.pop(0)
         decodedMessage += chr(int(tempStr,2))
-  print "message:", decodedMessage[:-len(stopSeq)]
+  print "message: {}".format(decodedMessage[:-len(stopSeq)])
 
 if len(sys.argv) == 1:
   print "please provide an argument:\n\tencode: to encode a message in test.jpeg\n\tdecode: decode the message in out.bmp"
 elif "encode" in sys.argv:
-  getUserImputAsBinary()
+  getUserInputAsBinary()
   messageBinary = transformInput()
   addMessageToImage()
 elif "decode" in sys.argv:
