@@ -7,7 +7,7 @@ messageBinary = []
 stopSeq = ["00101111","00101111","00101111"]
 stopSeqBroken = ["00","10","11","11","00","10","11","11","00","10","11","11"]
 
-def getUserImputAsBinary():
+def getUserInputAsBinary():
   userInput = raw_input("What's your message?: ")
   for i in range(0,len(userInput)):
     char = userInput[i]
