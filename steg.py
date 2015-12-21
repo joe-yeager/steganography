@@ -8,6 +8,8 @@ stopSeq = ["00101111","00101111","00101111"]
 stopSeqBroken = ["00","10","11","11","00","10","11","11","00","10","11","11"]
 
 def getUserInputAsBinary():
+  # with open ("data.txt", "r") as myfile:
+  #     userInput=myfile.read()
   userInput = raw_input("What's your message?: ")
   for i in range(0,len(userInput)):
     char = userInput[i]
@@ -20,7 +22,7 @@ def transformInput():
   tempBuf = []
   for i in range(0, len(messageBinary)):
     for j in range(0, 4):
-      tempBuf.append(messageBinary[i][j*2:(j*2)+2])
+      tempBuf.append(messageBinary[i][ j*2: (j*2)+2 ])
   return tempBuf
 
 def addMessageToImage():
@@ -31,7 +33,8 @@ def addMessageToImage():
     row = 0
     while len(messageBinary) > 0:
       for i in range (0, width):
-        binary = bin(imgArry[row][i][0])[2:].zfill(8)
+        sliceFirst2 = bin(imgArry[row][i][0])[2:]
+        binary = sliceFirst2.zfill(8)
         if len(messageBinary) == 0:
           break
         blah = binary[:6] + messageBinary.pop(0)
@@ -68,7 +71,7 @@ def fetchMessageFromImage():
         for i in range(0,4):
           tempStr += messageBinary.pop(0)
         decodedMessage += chr(int(tempStr,2))
-  print "message: {}".format(decodedMessage[:-len(stopSeq)])
+  print "message: \n{}".format(decodedMessage[:-len(stopSeq)])
 
 if len(sys.argv) == 1:
   print "please provide an argument:\n\tencode: to encode a message in test.jpeg\n\tdecode: decode the message in out.bmp"
