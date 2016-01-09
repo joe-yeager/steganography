@@ -1,87 +1,105 @@
-from PIL import Image
-import binascii
 import numpy
 import sys
+from PIL import Image
 
-messageBinary = []
-stopSeq = ["00101111","00101111","00101111"]
-stopSeqBroken = ["00","10","11","11","00","10","11","11","00","10","11","11"]
+stop_seq = "///"
 
-def getUserInputAsBinary():
-  # with open ("data.txt", "r") as myfile:
-  #     userInput=myfile.read()
-  userInput = raw_input("What's your message?: ")
-  for i in range(0,len(userInput)):
-    char = userInput[i]
-    result = bin(ord(char))[2:].zfill(8)
-    messageBinary.append(result)
+num_bits = 8
+stripes = 4
+red = 0
+in_file = "in.bmp"
+out_file = "out.bmp"
 
-def transformInput():
-  for i in stopSeq:
-    messageBinary.append(i)
-  tempBuf = []
-  for i in range(0, len(messageBinary)):
-    for j in range(0, 4):
-      tempBuf.append(messageBinary[i][ j*2: (j*2)+2 ])
-  return tempBuf
+def convert_char_to_binary(char):
+    result = bin(ord(char))[2:]
+    result = result.zfill(num_bits)
+    return result
 
-def addMessageToImage():
-  image = Image.open("in.bmp")
-  (width, height) = image.size
-  imgArry = numpy.array(image)
-  if (len(messageBinary) * 4 ) < imgArry.size:
+def convert_to_two_bits(string):
+    return [ string[i * 2: (i * 2) + 2] for i in range(stripes) ]
+
+def string_to_binary(user_string):
+    message_binary = []
+    length = len(user_string)
+    message_binary = map(convert_char_to_binary, user_string)
+    return reduce(lambda x,y: x+y, map(convert_to_two_bits, message_binary))
+
+def get_message_binary():
+    user_input = raw_input("What's your message?: ")
+    message_binary = string_to_binary(user_input)
+    message_binary.extend(string_to_binary(stop_seq))
+    return message_binary
+
+def insert_message(message_transformed, in_file, out_file):
+    image = Image.open(in_file)
+    img_arr = numpy.array(image)
+    width, height = image.size
     row = 0
-    while len(messageBinary) > 0:
-      for i in range (0, width):
-        sliceFirst2 = bin(imgArry[row][i][0])[2:]
-        binary = sliceFirst2.zfill(8)
-        if len(messageBinary) == 0:
-          break
-        blah = binary[:6] + messageBinary.pop(0)
-        imgArry[row][i][0] = int(blah,2)
+    check_image_capicity(message_transformed, img_arr)
+    
+    while len(message_transformed) > 0:
+        for i in range (width):
+            if len(message_transformed) == 0:
+                break
+
+            binary = bin(img_arr[row][i][red])[2:]
+            binary = binary.zfill(num_bits)
+
+            most_sig_bits = binary[:8 - (num_bits // stripes) ]
+            new_pixel_value = str(most_sig_bits) + message_transformed.pop(0)
+            img_arr[row][i][red] = int(new_pixel_value,2)
+        
+        row += 1
         if row > height:
-          break
-      row += 1
-    result = Image.fromarray(imgArry)
-    result.save('out.bmp')
+            break
 
-def fetchMessageFromImage():
-  messageBinary = []
-  image = Image.open("out.bmp")
-  (width, height) = image.size
-  imgArry = numpy.array(image)
-  row = 0
-  doneFetching = False
-  decodeArray = []
-  decodedMessage = ""
-  while not doneFetching:
-    if row == height:
-      break
-    for i in range (0, width):
-      messageBinary.append(bin(imgArry[row][i][0])[2:][-2:].zfill(2))
-      if messageBinary[-12:] == stopSeqBroken:
-        doneFetching = True
-        break
+    result = Image.fromarray(img_arr)
+    result.save(out_file)
 
-    row += 1
+def check_image_capicity(message_binary, img_arr):
+    try:
+        assert( len(message_binary) * stripes < img_arr.size)
+    except:
+        max_size = (img_arr.size // stripes) - len(stopSeq)
+        print "Error:  Message is too long, image has a max capicity of {} characters".format(max_size)
+        sys.exit(1)
 
-  while len(messageBinary) > 0:
-    if len(messageBinary) >= 4:
-        tempStr = ""
-        for i in range(0,4):
-          tempStr += messageBinary.pop(0)
-        decodedMessage += chr(int(tempStr,2))
-  print "message: \n{}".format(decodedMessage[:-len(stopSeq)])
+def fetch_message(img_file, stop_seq_striped):
+    message_binary = []
+    image = Image.open(img_file)
+    width, height = image.size
+    img_arr = numpy.array(image)
+    row, length = 0, len(stop_seq_striped)
+    done_fetching = False
+    while not done_fetching:
+        if row == height:
+            break
+        for i in range (width):
+            binary = bin(img_arr[row][i][red])[2:]
+            least_2_sig_bits = binary[-2].zfill(2)
+            message_binary.append(least_2_sig_bits)
+            if message_binary[-length:] == stop_seq_striped:
+                done_fetching = True
+                break
+        row += 1
+    decode_message(message_binary)
 
-if len(sys.argv) == 1:
-  print "please provide an argument:\n\tencode: to encode a message in test.jpeg\n\tdecode: decode the message in out.bmp"
-elif "encode" in sys.argv:
-  getUserInputAsBinary()
-  messageBinary = transformInput()
-  addMessageToImage()
-elif "decode" in sys.argv:
-  fetchMessageFromImage()
+def decode_message(message_binary):
+    decoded_message = ""
+    while len(message_binary) > 0:
+        if len(message_binary) >= stripes:
+            temp = ""
+            for i in range(stripes):
+                temp += message_binary.pop(0)
+            decoded_message += chr(int(temp,2))
+    print "message: \n{}".format(decoded_message[:-len(stop_seq)])
 
-
-
-
+if __name__=='__main__':
+    if len(sys.argv) == 1:
+        print "please provide an argument:\n\tencode: to encode a message in test.jpeg\n\tdecode: decode the message in out.bmp"
+    elif "encode" in sys.argv:
+        message_binary = get_message_binary()
+        insert_message(message_binary, in_file, out_file)
+    elif "decode" in sys.argv:
+        stop_seq_striped = string_to_binary(stop_seq)
+        fetch_message(out_file, stop_seq_striped)
